@@ -54,3 +54,42 @@
   - フロントエンドはJS、バックエンドはBlazor、とはやりにくいということか
   - APIサーバーにできないこともなさそうだが、あえてBlazorでらなくてもいいFWは他にありそう
 - 古いWebブラウザをサポートする必要がある
+
+## Blazor を使って初めての Web アプリを構築する
+
+### 開発環境の構築
+
+- [.NET SDK](https://dotnet.microsoft.com/ja-jp/)のインストール
+  - `dotnet new <template-name>` …… 新しいプロジェクトの作成
+    - `dotnet new blazor`
+  - `dotnet build`, `dotnet run` …… プロジェクトのビルド、実行
+  - `dotnet watch` コード変更の自動適用
+- Blazorツール
+  - [C# Dev Kit](https://marketplace.visualstudio.com/items?itemName=ms-dotnettools.csdevkit) 拡張機能で使用可能
+
+### VSCode でウェブアプリを作成、実行
+
+.NET 8.0 SDKを使ってウェブアプリを作成する。  
+ターミナルで `dotnet --list-sdks` コマンドを実行し、SDKがインストールされているか確認する。
+
+```cmd
+> dotnet --list-sdks
+8.0.404 [C:\Program Files\dotnet\sdk]
+```
+
+Ctrl + Shift + P キーでコマンドパレットを表示し、「.NET: 新しいプロジェクト」を選択する。`.net new project` で検索可能。
+
+![alt text](images/02_new_project.png)
+
+Blazor Web アプリを選択し、プロジェクト名、フォルダを作成するフォルダを選択する。
+
+![alt text](images/02_select_blazor.png)
+
+![alt text](images/02_solution_explorrer.png)
+
+- `Program.cs` …… エントリーポイント。サービスとミドルウェアを構成する
+- `App.razor` …… アプリのルートコンポーネント
+- `Routes.razor` …… Blazorルーター
+- `Components/Pages` …… アプリのWebページ
+- `FirstBlazorApp.csproj` …… プロジェクトファイル
+- `Properties/launchSettings.json` …… ローカル開発環境のプロファイル設定
