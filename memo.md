@@ -280,3 +280,87 @@ dotnet new razorcomponent -n Todo -o Components/Pages
 ```
 
 ![alt text](03_todo1.png)
+
+## Blazor Web アプリでデータを操作する
+
+### サービスの定義
+
+データソースからUIに表示するデータを取得するサービスを定義する。
+
+Blazorで使用できるデータソースには、RDS、NoSQL、Webサービス、Azureサービス、その他多くのシステムが含まれる。  
+Entitiy Framework、HTTPクライアント、ODBCなどの.NET技術を用いてそれらのソースに対してクエリを実行できる。
+
+まず、取得するデータを表現するためのクラスを定義する。データに関するクラスなので `Data` というメンバー名前空間を割り当てる。
+
+```cpp
+namespace BlazingPizza.Data;
+
+public class Pizza
+{
+    public int PizzaId { get; set; }
+    public string Name { get; set; }
+    public string Description { get; set; }
+    public decimal Price { get; set; }
+    public bool Vegetarian { get; set; }
+    public bool Vegan { get; set; }
+}
+```
+
+次に、データを取得するサービスを定義する。
+
+```cpp
+namespace BlazingPizza.Data;
+
+public class PizzaService
+{
+    public Task<Pizza[]> GetPizzasAsync()
+    {
+      // データアクセス
+    }
+}
+```
+
+データソースへのアクセスには通常時間がかかる可能性があるため非同期呼び出しを使用し、データクラスのコレクションを取得する。
+
+最後に、 `Program.cs` にコードを追加し、サービスを登録する。  
+
+```cpp
+...
+// ピザサービスを追加
+builder.Services.AddSingleton<PizzaService>();
+...
+```
+
+これは依存性注入という仕組みで、依存先のクラスのインスタンスをインターフェースを経由して参照することで疎結合になるようにする。  
+BlazorのDIでは、インスタンスの有効な範囲が決められる。
+
+- Transient …… コンポーネントがアクセスされる度にインスタンスを生成する
+- Scoped …… 利用ユーザー単位でインスタンスを生成する。コンポーネント間で共通のインスタンスが利用される
+- Singleton …… アプリケーション全体でインスタンスが生成される。
+  - Blazor Serverの場合、アプリケーションプロセスはサーバー側なので、ユーザー間でも共通のインスタンスが利用される
+  - Blazor WebAssemblyの場合、アプリケーションプロセスはクライアント側なので、Scopedと同じ動作になる
+
+今の例では全てのユーザーに共通する商品情報なので、Singletonスコープで登録できる。
+
+参考：[BlazorにおけるDIのScopeについて](https://zenn.dev/yoshi1220/articles/22b99b1e3717e3)
+
+サービスを呼び出すためにはDIでインスタンスを取得する。後ろにコンポーネント内で使用するサービスのインスタンス名をつけられる。
+
+```cpp
+@using BlazingPizza.Data
+@inject PizzaService PizzaSvc
+```
+
+サービスからデータを取得する場合、 `OnInitializedAsync` メソッドで実行するのが適切らしい。  
+これは、コンポーネントの初期化が完了し、初期パラメータを受け取った後、ページがレンダリングされる前に発生する。
+
+このイベントをオーバーライドしてデータを取得する。非同期呼び出しなので `await` キーワードを使用する。
+
+```cpp
+private Pizza[] todaysPizzas;
+
+protected override async Task OnInitializedAsync()
+{
+  todaysPizzas = await PizzaSvc.GetPizzaAsync();
+}
+```
