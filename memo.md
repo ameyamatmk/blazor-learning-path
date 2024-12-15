@@ -132,3 +132,151 @@ Razor コンポーネントとは
 - `@code` ブロックでC#クラスメンバーをコンポーネントに追加する
 - `@rendermode InteractiveServer` ディレクトリ部を宣言すると、ブラウザからのUIイベントをサーバーが処理できるようになる
   - モードは None, Server, WebAssembly, Auto(Server and WebAssembly) が選択できる
+
+## Blazor を使用して To Do リストを作成する
+
+### データバインディングとイベント
+
+データバインディングやUIイベントを処理するためには、コンポーネントが対話型である必要がある。  
+`@rendermode` ディレクティブで対話型レンダリングモードを適用する。
+
+- C# 式の値をレンダリングする場合、先頭に `@` 文字をつける
+  - `( )` を使用して式の開始と終了を明示的に指定することもできる
+- 制御フローを追加する場合も先頭に `@` 文字をつける
+
+```
+@if (currentCount > 3)
+{
+    <p>You win!</p>
+}
+```
+
+```
+<ul>
+    @foreach (var item in items)
+    {
+        <li>@item.Name</li>
+    }
+</ul>
+```
+
+- UIイベントのコールバックは `@on` で始まり、イベント名で終わる属性を使用する
+  - `@onclick` 属性でボタンクリックイベント
+  - `@onchange` , `@oninput` など
+  - メソッド名を指定する他、ラムダ式をインラインで定義することもできる
+- UI要素の値をコード内の特定の値にバインドするには、 `@bind` 属性を使用する
+  - `@` で指定する場合と比較し、ユーザー入力等のUI側での変更をC#コードで同期できる
+  - 追加の修飾子を使用できる
+    - `@bind:get` や `@bind:set` では値の取得、設定時のコールバックを指定できる
+    - `@bind:after` 値が更新された後のコールバックを指定できる
+
+### Todoリストを作成する
+
+Razorコンポーネントを追加。
+
+![alt text](images/03_add_component.png)
+
+.NET CLIで実行する場合;
+
+```cmd
+dotnet new razorcomponent -n Todo -o Components/Pages
+```
+
+`@page` ディレクティブと `@rendermode` ディレクティブを追加する。
+
+```
+@page "/todo"
+@rendermode InteractiveServer
+
+<h3>Todo</h3>
+
+@code {
+
+}
+```
+
+`Layout/NavMenu.razor` を編集し、ナビゲーションメニューにページリンクを追加
+
+```
+<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
+    <nav class="flex-column">
+...
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="todo">
+                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Todo
+            </NavLink>
+        </div>
+    </nav>
+</div>
+```
+
+テキストエリアとボタンを配置し、 文字列フィールドと `@onclick` イベントのバインドを設定してTodoを追加できるようにする。
+
+```
+@page "/todo"
+@rendermode InteractiveServer
+
+<h3>Todo</h3>
+
+<input @bind="newTodo" />
+<button @onclick="AddTodo">Add todo</button>
+
+<ul>
+    @foreach (var todo in todos)
+    {
+        <li>@todo.Title</li>
+    }
+</ul>
+
+@code {
+    private List<TodoItem> todos = new();
+
+    string newTodo = string.Empty;
+    private void AddTodo()
+    {
+        if (!string.IsNullOrWhiteSpace(newTodo))
+        {
+            todos.Add(new TodoItem { Title = newTodo });
+            newTodo = string.Empty;
+        }
+    }
+}
+```
+
+チェックボックスを追加する
+
+```
+@page "/todo"
+@rendermode InteractiveServer
+
+<h3>Todo (@todos.Count(todo => !todo.IsDone))</h3>
+
+<input @bind="newTodo" />
+<button @onclick="AddTodo">Add todo</button>
+
+<ul>
+    @foreach (var todo in todos)
+    {
+        <li>
+            <input type="checkbox" @bind="todo.IsDone" />
+            <input @bind=todo.Title />
+        </li>
+    }
+</ul>
+
+@code {
+    private List<TodoItem> todos = new();
+
+    string newTodo = string.Empty;
+    private void AddTodo()
+    {
+        if (!string.IsNullOrWhiteSpace(newTodo))
+        {
+            todos.Add(new TodoItem { Title = newTodo });
+            newTodo = string.Empty;
+        }
+    }
+}
+```
+
+![alt text](03_todo1.png)
