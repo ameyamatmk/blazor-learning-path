@@ -67,7 +67,7 @@
 - Blazorツール
   - [C# Dev Kit](https://marketplace.visualstudio.com/items?itemName=ms-dotnettools.csdevkit) 拡張機能で使用可能
 
-### VSCode でウェブアプリを作成、実行
+### ウェブアプリを作成、実行
 
 .NET 8.0 SDKを使ってウェブアプリを作成する。  
 ターミナルで `dotnet --list-sdks` コマンドを実行し、SDKがインストールされているか確認する。
@@ -93,3 +93,42 @@ Blazor Web アプリを選択し、プロジェクト名、フォルダを作成
 - `Components/Pages` …… アプリのWebページ
 - `FirstBlazorApp.csproj` …… プロジェクトファイル
 - `Properties/launchSettings.json` …… ローカル開発環境のプロファイル設定
+
+その後、VSCodeでデバッグをしようと試みたが、うまく出来なかった。  
+より具体的には、ビルドや実行は出来たが、デバッガを使ってブレークポイントで止める、ということが出来なかった。
+
+VSCodeの適切なデバッガ選択や launch.json が不明。
+
+仕方ないので、Visual Studioに切り替えて実施する。
+
+新規プロジェクトで Blazor Web App を選択する。
+
+![alt text](images/02_new_project_vs.png)
+
+プロジェクト名を入力し、追加情報を設定して作成する。
+
+![alt text](images/02_additional_info.png)
+
+デバッグを開始した後、火のアイコンをアクティブにするとホットリロードを有効にできる。  
+「ファイル保存時のホットリロード」を有効にしないとリロードされない？
+
+![alt text](images/02_hot_reload.png)
+
+### Razor コンポーネント
+
+Razor とは
+
+- HTML と C# に基づいたマークアップ構文
+- プレーンな HTML と C# のロジックを含む
+- Razor ファイルは、コンポーネントのrんだリングロジックをカプセル化する C# クラスにコンパイルされる
+
+Razor コンポーネントとは
+
+- レンダリングする HTML およびユーザーイベントの処理方法を再利用可能なコンポーネントとして定義する
+- Razor で作成された Blazor コンポーネントは単なるC#クラスなので、任意の.NETコードを使用できる
+- コンポーネント名と一致するHTMLスタイルタグを使用することで、コンポーネントを使用できる
+- パラメータはpublicな `[Parameter]` 属性を持つプロパティをコンポーネントに追加することで定義し、プロパティ名に一致するHTMLスタイル属性で値を指定する
+- `@page` ディレクティブでページのルートを指定する
+- `@code` ブロックでC#クラスメンバーをコンポーネントに追加する
+- `@rendermode InteractiveServer` ディレクトリ部を宣言すると、ブラウザからのUIイベントをサーバーが処理できるようになる
+  - モードは None, Server, WebAssembly, Auto(Server and WebAssembly) が選択できる
