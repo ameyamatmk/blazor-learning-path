@@ -279,7 +279,7 @@ dotnet new razorcomponent -n Todo -o Components/Pages
 }
 ```
 
-![alt text](03_todo1.png)
+![alt text](images/03_todo1.png)
 
 ## Blazor Web アプリでデータを操作する
 
@@ -364,3 +364,73 @@ protected override async Task OnInitializedAsync()
   todaysPizzas = await PizzaSvc.GetPizzaAsync();
 }
 ```
+
+### データベースアクセス
+
+NuGetパッケージの `Microsoft.EntityFrameworkCore` をインストールする。  
+さらに、アクセスするデータベースに合わせて追加のパッケージをインストールする。  
+SQLiteを利用する場合は `Microsoft.EntityFrameworkCore.Sqlite` 。
+
+エンティティに相当するデータクラスがあり、これによる `DbSet<T>` 型のプロパティに持つデータベースコンテキストを定義する。  
+プロパティ名がテーブル名になる。  
+データベースコンテキストを通じてデータの取得、挿入、更新などを行う。
+
+```cpp
+using Microsoft.EntityFrameworkCore;
+
+namespace BlazingPizza.Data;
+
+public class PizzaStoreContext : DbContext
+{
+    public PizzaStoreContext(DbContextOptions options) : base(options)
+    {
+    }
+
+    public DbSet<PizzaSpecial> Specials { get; set; }
+}
+```
+
+データベースコンテキストを利用するために、 `Program.cs` にサービスを追加する。
+
+```cpp
+builder.Services.AddSqlite<PizzaStoreContext>("Data Source=pizza.db");
+```
+
+例えば初期シードとしてデータを挿入する場合は `Specials.AddRange` でデータを追加して `SaveChanges` メソッドでコミットする。
+
+```cpp
+namespace BlazingPizza.Data;
+
+public static class SeedData
+{
+    public static void Initialize(PizzaStoreContext db)
+    {
+        var specials = new PizzaSpecial[]
+        {
+            new PizzaSpecial()
+            {
+                Name = "Basic Cheese Pizza",
+                Description = "It's cheesy and delicious. Why wouldn't you want one?",
+                BasePrice = 9.99m,
+                ImageUrl = "img/pizzas/cheese.jpg",
+            },
+        };
+        db.Specials.AddRange(specials);
+        db.SaveChanges();
+    }
+}
+```
+
+データベースコンテキストを直接利用すると、そのインスタンスが長時間利用されることによる競合やデータ不整合が発生する可能性がある。  
+この問題を解決するため、データベーススコープを利用して必要なときに新しいデータベーススコープを作成して使用後に破棄できるようにする。
+
+```cpp
+var scopeFactory = app.Services.GetRequiredService<IServiceScopeFactory>();
+using (var scope = scopeFactory.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<PizzaStoreContext>();
+    // データベースコンテキストの利用
+}
+```
+
+参考：[[初心者][備忘録]Blazor Server におけるDbContextの使い方 #Blazor - Qiita](https://qiita.com/minoura_a/items/0de89502d437368bafa8)
