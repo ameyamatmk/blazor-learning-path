@@ -292,7 +292,7 @@ Entitiy Framework、HTTPクライアント、ODBCなどの.NET技術を用いて
 
 まず、取得するデータを表現するためのクラスを定義する。データに関するクラスなので `Data` というメンバー名前空間を割り当てる。
 
-```cpp
+```cs
 namespace BlazingPizza.Data;
 
 public class Pizza
@@ -308,7 +308,7 @@ public class Pizza
 
 次に、データを取得するサービスを定義する。
 
-```cpp
+```cs
 namespace BlazingPizza.Data;
 
 public class PizzaService
@@ -324,7 +324,7 @@ public class PizzaService
 
 最後に、 `Program.cs` にコードを追加し、サービスを登録する。  
 
-```cpp
+```cs
 ...
 // ピザサービスを追加
 builder.Services.AddSingleton<PizzaService>();
@@ -346,7 +346,7 @@ BlazorのDIでは、インスタンスの有効な範囲が決められる。
 
 サービスを呼び出すためにはDIでインスタンスを取得する。後ろにコンポーネント内で使用するサービスのインスタンス名をつけられる。
 
-```cpp
+```cs
 @using BlazingPizza.Data
 @inject PizzaService PizzaSvc
 ```
@@ -356,7 +356,7 @@ BlazorのDIでは、インスタンスの有効な範囲が決められる。
 
 このイベントをオーバーライドしてデータを取得する。非同期呼び出しなので `await` キーワードを使用する。
 
-```cpp
+```cs
 private Pizza[] todaysPizzas;
 
 protected override async Task OnInitializedAsync()
@@ -375,7 +375,7 @@ SQLiteを利用する場合は `Microsoft.EntityFrameworkCore.Sqlite` 。
 プロパティ名がテーブル名になる。  
 データベースコンテキストを通じてデータの取得、挿入、更新などを行う。
 
-```cpp
+```cs
 using Microsoft.EntityFrameworkCore;
 
 namespace BlazingPizza.Data;
@@ -392,13 +392,13 @@ public class PizzaStoreContext : DbContext
 
 データベースコンテキストを利用するために、 `Program.cs` にサービスを追加する。
 
-```cpp
+```cs
 builder.Services.AddSqlite<PizzaStoreContext>("Data Source=pizza.db");
 ```
 
 例えば初期シードとしてデータを挿入する場合は `Specials.AddRange` でデータを追加して `SaveChanges` メソッドでコミットする。
 
-```cpp
+```cs
 namespace BlazingPizza.Data;
 
 public static class SeedData
@@ -424,7 +424,7 @@ public static class SeedData
 データベースコンテキストを直接利用すると、そのインスタンスが長時間利用されることによる競合やデータ不整合が発生する可能性がある。  
 この問題を解決するため、データベーススコープを利用して必要なときに新しいデータベーススコープを作成して使用後に破棄できるようにする。
 
-```cpp
+```cs
 var scopeFactory = app.Services.GetRequiredService<IServiceScopeFactory>();
 using (var scope = scopeFactory.CreateScope())
 {
@@ -434,3 +434,173 @@ using (var scope = scopeFactory.CreateScope())
 ```
 
 参考：[[初心者][備忘録]Blazor Server におけるDbContextの使い方 #Blazor - Qiita](https://qiita.com/minoura_a/items/0de89502d437368bafa8)
+
+### コンポーネント間のデータ共有
+
+- コンポーネントパラメータ、カスケード型パラメータ
+  - 親コンポーネントから子コンポーネントに値を送信する
+- AppState パターン
+  - アプリケーションの任意のコンポーネントからアクセスできる
+
+#### コンポーネントパラメータ
+
+子コンポーネントに子コンポーネントパラメータをパブリックプロパティとして定義し、 `[Parameter]` 属性で修飾する
+
+```cs
+<h2>New Pizza: @PizzaName</h2>
+
+<p>@PizzaDescription</p>
+
+@code {
+    [Parameter]
+    public string PizzaName { get; set; }
+    
+    [Parameter]
+    public string PizzaDescription { get; set; } = "The best pizza you've ever tasted."
+}
+```
+
+カスタムクラスをパラメータに設定する場合、親コンポーネントではインラインコードなどでインスタンスを渡すことで値を送信できる。
+
+```cs
+<h2>New Topping: @Topping.Name</h2>
+
+<p>Ingredients: @Topping.Ingredients</p>
+
+@code {
+    [Parameter]
+    public PizzaTopping Topping { get; set; }
+}
+```
+
+```cs
+@page "/pizzas-toppings"
+
+<h1>Our Latest Pizzas and Topping</h1>
+
+<Pizza PizzaName="Hawaiian" PizzaDescription="The one with pineapple" />
+
+<PizzaTopping Topping="@(new PizzaTopping() { Name = "Chilli Sauce", Ingredients = "Three kinds of chilli." })" />
+```
+
+#### カスケード型パラメータ
+
+直接の親子関係にあるコンポーネントではなく、より深い階層にパラメータを自動送信する場合、カスケード型のパラメータとして親コンポーネントに値を設定すると、任意の深さの全ての子孫コンポーネントで使用できるようになる。
+
+具体的には、 `<CascadingValue>` タグで指定した情報がそのタグ内でレンダリングされる全てのコンポーネントで参照できる。  
+
+```cs
+@page "/specialoffers"
+
+<h1>Special Offers</h1>
+
+<CascadingValue Name="DealName" Value="Throwback Thursday">
+    <!-- Any descendant component rendered here will be able to access the cascading value. -->
+</CascadingValue>
+```
+
+参照するコンポーネントでは、プロパティで `[CascadingParameter]` 属性で修飾する。  
+`Name` 値を省略した場合、属性は型によって照合される。その型のパラメータが1つならばよいが、2つ以上定義している場合は `Name` 値を指定する必要がある。  
+
+```cs
+<h2>Deal: @DealName</h2>
+
+@code {
+    [CascadingParameter(Name="DealName")]
+    private string DealName { get; set; }
+}
+```
+
+#### AppState パターン
+
+格納するプロパティをクラスとして定義し、値を設定または使用するためのスコープ付きサービスとして登録する。
+
+値を格納するクラス
+
+```cs
+public class PizzaSalesState
+{
+    public int PizzasSoldToday { get; set; }
+}
+```
+
+`Program.cs` で（セッション中で有効にするなら）スコープ付きサービスとして追加する。  
+アプリケーション全体で有効にしたい場合は Singleton スコープにするなど。
+
+```cs
+builder.Services.AddScoped<PizzaSalesState>();
+```
+
+`@inject` でサービスをDIして参照する。
+
+```cs
+@page "/"
+@inject PizzaSalesState SalesState
+
+<h1>Welcome to Blazing Pizzas</h1>
+
+<p>Today, we've sold this many pizzas: @SalesState.PizzasSoldToday</p>
+
+<button @onclick="IncrementSales">Buy a Pizza</button>
+
+@code {
+    private void IncrementSales()
+    {
+        SalesState.PizzasSoldToday++;
+    }
+}
+```
+
+### データバインディング
+
+UI要素をプロパティに関連付ける。
+
+バインドするときの属性や変更通知イベントはHTML要素ごとにいい感じの対象が選択される。  
+例えば、テキストエリア `<input>` では `value` 属性がバインドされ、チェックボックス `<checkbox>` では `checked` 属性がバインドされる。  
+また、いずれも `onchanged` イベンドにコントロールがバインドされる。
+
+バインドする属性やイベントを指定したい場合、それぞれ `@bind-value` ディレクティブと `@bind-value:event` ディレクティブを指定する。  
+例えば、値の変更時ではなく入力時であれば、 `@bind-value:event="oninput"` など。
+
+バインドする値に書式を指定したい場合、 `@bind:format` ディレクティブを設定する。  
+ただし、使用できるのは日付のみで、日付書式文字列を指定できる。  
+
+日付以外で書式を指定したい場合は、`get` アクセサで書式付きの値を返すようにするとできる。
+
+```cs
+@page "/pizzaapproval"
+@using System.Globalization
+
+<h1>Pizza: @PizzaName</h1>
+
+<p>Approval rating: @approvalRating</p>
+
+<p>
+    <label>
+        Set a new approval rating:
+        <input @bind="ApprovalRating" />
+    </label>
+</p>
+
+@code {
+    private decimal approvalRating = 1.0;
+    private NumberStyles style = NumberStyles.AllowDecimalPoint | NumberStyles.AllowLeadingSign;
+    private CultureInfo culture = CultureInfo.CreateSpecificCulture("en-US");
+    
+    private string ApprovalRating
+    {
+        get => approvalRating.ToString("0.000", culture);
+        set
+        {
+            if (Decimal.TryParse(value, style, culture, out var number))
+            {
+                approvalRating = Math.Round(number, 3);
+            }
+        }
+    }
+}
+```
+
+`ApprovalRating.set` によって値が更新されたときに `ApprovalRating.get` の値も変わるので `<input>` の値が変わる。  
+このとき、変更したプロパティのみではなくコンポーネント全体を再レンダリングし、DOMの差分を適用する流れで実施されるらしい。  
+なので、WPFみたいな `ApprovalRating.set` の中で明示的に変更される `approvalRating` プロパティだけが差分通知される、とかではないらしい。
