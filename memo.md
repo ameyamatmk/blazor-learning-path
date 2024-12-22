@@ -601,6 +601,129 @@ UI要素をプロパティに関連付ける。
 }
 ```
 
-`ApprovalRating.set` によって値が更新されたときに `ApprovalRating.get` の値も変わるので `<input>` の値が変わる。  
-このとき、変更したプロパティのみではなくコンポーネント全体を再レンダリングし、DOMの差分を適用する流れで実施されるらしい。  
+`ApprovalRating.set` によって値が更新されたときに `ApprovalRating.get` の値も変わるので間接的に `<input>` の値が変わる。  
+このとき、直接変更したプロパティのみが変化するのではなくコンポーネント全体を再レンダリングし、DOMの差分を適用する流れで実施されるらしい。  
 なので、WPFみたいな `ApprovalRating.set` の中で明示的に変更される `approvalRating` プロパティだけが差分通知される、とかではないらしい。
+
+[非同期なHTMLのレンダリングもサーバ側から全部やっちゃう「Blazor Server」が凄すぎる #C# - Qiita](https://qiita.com/jun1s/items/c0c872fb7cefbdc7f26e)
+
+## ページ、ルーティング、レイアウトを使用して Blazor のナビゲーションを改善する
+
+### ルートテンプレート
+
+- `App.razor` で定義する `Router` コンポーネントで要求をルーティングする。
+- `<Found>` タグで一致するルートがある場合のレスポンスを定義できる
+- `<NotFound>` タグで一致するルートがない場合のレスポンスを定義できる
+
+### NavigationManager
+
+`Navigationmanager` オブジェクトを取得し、以下の情報にアクセスできる
+
+- 現在の完全な URI (http://www.contoso.com/pizzas/margherita?extratopping=pineapple など)。
+- ベース URI (http://www.contoso.com/ など)。
+- ベース相対パス (pizzas/margherita など)。
+- クエリ文字列 (?extratopping=pineapple など)。
+
+```cs
+@page "/pizzas"
+@using Microsoft.AspNetCore.WebUtilities
+@inject NavigationManager NavManager
+
+<h1>Buy a Pizza</h1>
+<p>I want to order a: @PizzaName</p>
+<p>I want to add this topping: @ToppingName</p>
+
+@code {
+    [Parameter]
+    public string PizzaName { get; set; }
+    private string ToppingName { get; set; }
+    public string HomePageURI { get; set; }
+    protected override void OnInitialized()
+    {
+      // ベースURI
+      HomePageURI = NavManager.BaseUri;
+      // 完全なURI
+      var uri = NavManager.ToAbsoluteUri(NavManager.Uri);
+      // クエリ文字列の解析
+      if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("extratopping", out var extraTopping))
+      {
+        ToppingName = System.Convert.ToString(extraTopping);
+      }
+    }
+}
+```
+
+別のコンポーネントに転送するには、 `NavManager.NavigationTo()` メソッドを呼び出す。引数では絶対URまたは相対URIを指定する。
+
+### ルートパラメータ
+
+`@page` ディレクティブでルートパラメータの値を取得できるように定義する。  
+Blazorでは、パラメータとプロパティの大文字小文字は区別しない。
+
+```cs
+@page "/FavoritePizzas/{favorite}"
+
+<h1>Choose a Pizza</h1>
+<p>Your favorite pizza is: @Favorite</p>
+
+@code {
+    [Parameter]
+    public string Favorite { get; set; }
+}
+```
+
+- `{favorite?}` とすると、パラメータは省略可能となる。
+- `{favorite:int}` のようにすると、パラメータの型を指定できる。
+- `{*favorites}` のようにすると、全てのルートパラメータを取得できる。
+
+### Blazor レイアウト
+
+レンダリングされたマークアップを、それを参照する全てのコンポーネントと共有する仕組み。  
+ナビゲーションメニュー、ヘッダーフッターなどの共通UI要素を定義する。
+
+Blazor レイアウトのコンポーネントは `LayoutComponentBase` クラスを継承し、 `@Body` ディレクティブで参照コンポーネントのレンダリング場所を指定する。  
+他から参照されるコンポーネントなので、 `@page` ディレクティブは含めない。
+
+```cs
+// クラスの継承
+@inherits LayoutComponentBase
+
+<header>
+    <h1>Blazing Pizza</h1>
+</header>
+
+<nav>
+    <a href="Pizzas">Browse Pizzas</a>
+    <a href="Toppings">Browse Extra Toppings</a>
+    <a href="FavoritePizzas">Tell us your favorite</a>
+    <a href="Orders">Track Your Order</a>
+</nav>
+
+// レンダリング場所
+@Body
+
+<footer>
+    @new MarkdownString(TrademarkMessage)
+</footer>
+
+@code {
+    public string TrademarkMessage { get; set; } = "All content is &copy; Blazing Pizzas 2021";
+}
+```
+
+Blazor レイアウトコンポーネントを使う側では `@layout` ディレクティブを追加する。  
+ファイル名を `_Imports.razor` とすると、フォルダー内の全てのコンポーネントに対して自動的に適用される。
+
+```cs
+@page "/FavoritePizzas/{favorite}"
+@layout BlazingPizzasMainLayout
+
+<h1>Choose a Pizza</h1>
+
+<p>Your favorite pizza is: @Favorite</p>
+
+@code {
+    [Parameter]
+    public string Favorite { get; set; }
+}
+```
