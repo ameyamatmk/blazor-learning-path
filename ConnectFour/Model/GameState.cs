@@ -159,6 +159,7 @@
         /// <returns>The final array index where the piece resides</returns>
         public byte PlayPiece(int column)
         {
+            // 左上から右方向にインデックスを割り当てている
 
             // Check for a current win
             if (CheckForWin() != 0) throw new ArgumentException("Game is over");
@@ -166,6 +167,7 @@
             // Check the column
             if (TheBoard[column] != 0) throw new ArgumentException("Column is full");
 
+            // ひとつ下=7つ先のインデックスにピースが入っているインデックスを探す
             // Drop the piece in
             var landingSpot = column;
             for (var i = column; i < 42; i += 7)
@@ -194,5 +196,9 @@
 
         }
 
+        public bool IsFullColumn(int column)
+        {
+            return TheBoard[column] != 0;
+        }
     }
 }
